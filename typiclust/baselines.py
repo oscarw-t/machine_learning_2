@@ -1,10 +1,3 @@
-"""Uncertainty-based AL baselines: Uncertainty, Margin, Entropy.
-
-Each strategy trains a ResNet18 on the current labeled set, computes softmax
-responses on the unlabeled pool, then selects by the chosen score.
-Cold start (empty labeled set) falls back to random selection, matching the
-paper's treatment of L0 = empty (Appendix F.2.1).
-"""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,13 +9,6 @@ from torch.utils.data import DataLoader, Subset
 
 def uncertainty_select_round(labeled_indices, budget, n_total,
                               strategy='margin', device='cuda', epochs=100):
-    """Select next batch using an uncertainty-based strategy.
-
-    Args:
-        strategy: 'uncertainty' (lowest max-prob),
-                  'margin'      (lowest top-2 gap),
-                  'entropy'     (highest entropy).
-    """
     unlabeled = list(set(range(n_total)) - set(labeled_indices))
 
     if len(labeled_indices) == 0:
@@ -47,7 +33,6 @@ def uncertainty_select_round(labeled_indices, budget, n_total,
 
 
 def _get_softmax_predictions(labeled_indices, unlabeled_indices, device, epochs):
-    """Train ResNet18 on labeled set; return softmax probs (N_unlabeled, 10)."""
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),

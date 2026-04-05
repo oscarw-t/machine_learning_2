@@ -26,7 +26,7 @@ def extract_features(model, device='cuda'):
 
     for images, labels in loader:
         features = model.get_features(images.to(device))
-        features = F.normalize(features, dim=1)  # L2 normalise as per paper
+        features = F.normalize(features, dim=1)
         all_features.append(features.cpu())
         all_labels.append(labels)
 

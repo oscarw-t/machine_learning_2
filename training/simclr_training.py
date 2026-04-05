@@ -12,7 +12,7 @@ from models.simclr_model import SimCLRModel
 
 
 class SimCLRTransform:
-    #applies the same random pipeline twice to get two different views
+    #apply same random pipeline twice to get two rand views
     def __init__(self, size=32):
         self.transform = transforms.Compose([
             transforms.RandomResizedCrop(size, scale=(0.2, 1.0)),
@@ -56,11 +56,6 @@ class NTXentLoss(nn.Module):
 def train_simclr(epochs=500, batch_size=512, lr=0.4, momentum=0.9,
                  weight_decay=1e-4, temperature=0.5, device='cuda',
                  checkpoint_path='simclr_checkpoint.'):
-    """Train SimCLR on all 50k CIFAR-10 images (unlabelled).
-
-    If checkpoint_path exists the model is loaded and returned immediately,
-    skipping the 500-epoch training.  The checkpoint is saved after training.
-    """
     model = SimCLRModel(feature_dim=128).to(device)
 
     if checkpoint_path and os.path.exists(checkpoint_path):
@@ -91,7 +86,7 @@ def train_simclr(epochs=500, batch_size=512, lr=0.4, momentum=0.9,
             view1, view2 = view1.to(device), view2.to(device)
             _, proj1 = model(view1)
             _, proj2 = model(view2)
-            z = torch.cat([proj1, proj2], dim=0)  # (2N, 128)
+            z = torch.cat([proj1, proj2], dim=0)
 
             loss = criterion(z)
             optimizer.zero_grad()

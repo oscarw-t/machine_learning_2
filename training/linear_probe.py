@@ -1,11 +1,3 @@
-"""Framework (ii): linear classifier trained on frozen SimCLR features.
-
-Per Appendix F.2.2:
-  - Single linear layer of size d x C
-  - lr = 0.025 * 100 = 2.5  (100x the supervised lr)
-  - epochs = 2 * supervised epochs  (doubled training time)
-  - SGD, momentum 0.9, Nesterov, cosine scheduler
-"""
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -17,7 +9,6 @@ import torchvision.transforms as transforms
 
 @torch.no_grad()
 def extract_test_features(model, device='cuda'):
-    """L2-normalised 512-dim SimCLR features for the CIFAR-10 test set."""
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
@@ -39,12 +30,8 @@ def extract_test_features(model, device='cuda'):
 
 def train_linear_probe(train_features, train_labels, test_features, test_labels,
                        device='cuda', supervised_epochs=100):
-    """Train a linear head on frozen SimCLR features; return test accuracy (%).
-
-    lr and epochs are scaled from the supervised values per Appendix F.2.2.
-    """
-    epochs = supervised_epochs * 2   # doubled
-    lr = 0.025 * 100                 # 100x
+    epochs = supervised_epochs * 2
+    lr = 0.025 * 100
 
     X_tr = torch.tensor(train_features, dtype=torch.float32)
     y_tr = torch.tensor(train_labels,   dtype=torch.long)
