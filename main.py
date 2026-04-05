@@ -8,6 +8,7 @@ from training.simclr_training import train_simclr
 from training.feature_extraction import extract_features
 from training.classifier import train_classifier
 from training.linear_probe import extract_test_features, train_linear_probe
+from training.semisupervised import train_semisupervised
 from typiclust.selection import typiclust_select_round, random_select_round
 from typiclust.baselines import uncertainty_select_round
 
@@ -109,8 +110,9 @@ def run_experiment(
     print(f"  test features: {test_features.shape}\n")
 
     # Accumulators: results[strategy][round_idx] = list of accs over seeds
-    sup_results   = {s: {r: [] for r in range(num_rounds)} for s in strategies}
-    probe_results = {s: {r: [] for r in range(num_rounds)} for s in strategies}
+    sup_results    = {s: {r: [] for r in range(num_rounds)} for s in strategies}
+    probe_results  = {s: {r: [] for r in range(num_rounds)} for s in strategies}
+    semisup_results = {s: {r: [] for r in range(num_rounds)} for s in strategies}
 
     for seed in range(num_seeds):
         print(f"\n{'='*55}\nSeed {seed + 1}/{num_seeds}\n{'='*55}")
@@ -143,15 +145,24 @@ def run_experiment(
                     device=device, supervised_epochs=classifier_epochs
                 )
 
+                semisup_acc = train_semisupervised(
+                    train_features, train_labels, labeled_indices,
+                    test_features, test_labels,
+                    device=device, supervised_epochs=classifier_epochs,
+                )
+
                 sup_results[strategy][round_idx].append(acc)
                 probe_results[strategy][round_idx].append(probe_acc)
+                semisup_results[strategy][round_idx].append(semisup_acc)
 
                 print(f"  [{strategy:10s}] round {round_idx + 1} "
-                      f"n={budget:3d}: sup={acc:.1f}%  probe={probe_acc:.1f}%")
+                      f"n={budget:3d}: sup={acc:.1f}%  probe={probe_acc:.1f}%  semisup={semisup_acc:.1f}%")
 
-    _print_table(sup_results,   num_rounds, budget_per_round, "Fully Supervised")
-    _print_table(probe_results, num_rounds, budget_per_round,
+    _print_table(sup_results,    num_rounds, budget_per_round, "Fully Supervised")
+    _print_table(probe_results,  num_rounds, budget_per_round,
                  "Self-Supervised Embedding (Linear Probe)")
+    _print_table(semisup_results, num_rounds, budget_per_round,
+                 "Semi-Supervised (Pseudo-Labelling)")
 
     _plot_results(sup_results, num_rounds, budget_per_round,
                   title="Fully Supervised — CIFAR-10 (low budget)",
@@ -159,8 +170,11 @@ def run_experiment(
     _plot_results(probe_results, num_rounds, budget_per_round,
                   title="Linear Probe on SimCLR features — CIFAR-10 (low budget)",
                   save_path="results_probe.png")
+    _plot_results(semisup_results, num_rounds, budget_per_round,
+                  title="Semi-Supervised (Pseudo-Labelling) — CIFAR-10 (low budget)",
+                  save_path="results_semisup.png")
 
-    return sup_results, probe_results
+    return sup_results, probe_results, semisup_results
 
 
 if __name__ == "__main__":
