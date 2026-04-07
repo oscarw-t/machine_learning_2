@@ -185,5 +185,5 @@ if __name__ == "__main__":
         num_rounds=5,
         classifier_epochs=100,
         num_seeds=10,
-        strategies=('hybrid'), #run with only hybrid and caches files
+        strategies=('hybrid',), #run with only hybrid and caches files
     )
