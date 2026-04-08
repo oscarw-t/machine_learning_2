@@ -12,19 +12,19 @@ def uncertainty_select_round(labeled_indices, budget, n_total,
     unlabeled = list(set(range(n_total)) - set(labeled_indices))
 
     if len(labeled_indices) == 0:
-        # Cold start: no model available, fall back to random
+        #cold start so fall back to random
         np.random.shuffle(unlabeled)
         return unlabeled[:budget]
 
-    probs = _get_softmax_predictions(labeled_indices, unlabeled, device, epochs)
+    probs = get_softmax_predictions(labeled_indices, unlabeled, device, epochs)
 
     if strategy == 'uncertainty':
-        scores = -probs.max(axis=1)                        # lower max-prob -> higher score
+        scores = -probs.max(axis=1)  #lower max-prob means higher score
     elif strategy == 'margin':
         sorted_p = np.sort(probs, axis=1)[:, ::-1]
-        scores = -(sorted_p[:, 0] - sorted_p[:, 1])       # smaller margin -> higher score
+        scores = -(sorted_p[:, 0] - sorted_p[:, 1])  #smaller margin means higher score
     elif strategy == 'entropy':
-        scores = -(probs * np.log(probs + 1e-10)).sum(axis=1)  # higher entropy -> higher score
+        scores = -(probs * np.log(probs + 1e-10)).sum(axis=1)  #higher entropy means higher score
     else:
         raise ValueError(f"Unknown strategy: {strategy!r}")
 
@@ -32,13 +32,15 @@ def uncertainty_select_round(labeled_indices, budget, n_total,
     return [unlabeled[i] for i in top_local]
 
 
-def _get_softmax_predictions(labeled_indices, unlabeled_indices, device, epochs):
+def get_softmax_predictions(labeled_indices, unlabeled_indices, device, epochs):
+
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
     ])
+
     infer_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
@@ -50,6 +52,13 @@ def _get_softmax_predictions(labeled_indices, unlabeled_indices, device, epochs)
     infer_dataset = torchvision.datasets.CIFAR10(
         root='./data', train=True, download=True, transform=infer_transform
     )
+
+    #full_train = torchvision.datasets.CIFAR10(
+    #    root='.data/cifar-10-batches-py', train=True, download=True, transform=train_transform
+    #)
+    #infer_dataset = torchvision.datasets.CIFAR10(
+    #    root='./data/cifar-10-batches-py', train=True, download=True, transform=infer_transform
+    #)
 
     train_loader = DataLoader(Subset(full_train, labeled_indices),
                               batch_size=min(64, len(labeled_indices)),

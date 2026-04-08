@@ -3,9 +3,10 @@ import numpy as np
 from typiclust.typicality import compute_typicality
 from typiclust.k_means import cluster
 
+#the modification
 
-def typiclust_select_round(features, labeled_indices, budget,
-                            max_clusters=500, k_typicality=20):
+def typiclust_select_round(features, labeled_indices, budget, max_clusters=500, k_typicality=20):
+    
     N = len(features)
     n_clusters = min(len(labeled_indices) + budget, max_clusters)
 
@@ -56,15 +57,18 @@ def typiclust_select_round(features, labeled_indices, budget,
 
 
 def random_select_round(n_total, labeled_indices, budget):
+
     remaining = list(set(range(n_total)) - set(labeled_indices))
     np.random.shuffle(remaining)
+
     return remaining[:budget]
 
-def hybrid_select_round(features, labeled_indices, budget, round_idx,
-                        n_total=50000, device='cuda', classifier_epochs=100,
-                        switch_round=3):
+
+### hybrid switch round LEAVE AS 3
+def hybrid_select_round(features, labeled_indices, budget, round_idx, n_total=50000, device='cuda', classifier_epochs=100, switch_round=3):
     if round_idx < switch_round:
         return typiclust_select_round(features, labeled_indices, budget)
+    
     else:
         from typiclust.baselines import uncertainty_select_round
         return uncertainty_select_round(

@@ -12,7 +12,8 @@ from models.simclr_model import SimCLRModel
 
 
 class SimCLRTransform:
-    #apply same random pipeline twice to get two rand views
+    #apply transofrm twice, for two views
+
     def __init__(self, size=32):
         self.transform = transforms.Compose([
             transforms.RandomResizedCrop(size, scale=(0.2, 1.0)),
@@ -32,13 +33,15 @@ class SimCLRTransform:
 
 
 class NTXentLoss(nn.Module):
-    #z[i] and z[i+N] >= 0; all other 2N-2 pairs < 0
+
+    #pos pairs z[i] , z[i+n]
+
     def __init__(self, temperature=0.5):
         super().__init__()
         self.temperature = temperature
 
     def forward(self, z):
-        # z: (2N, dim), first N view1, last N view2
+        #z shape 2n, dim, view1 then veiw2
         N = z.shape[0] // 2
         z = F.normalize(z, dim=1)
         sim_matrix = torch.mm(z, z.t()) / self.temperature
@@ -46,13 +49,16 @@ class NTXentLoss(nn.Module):
         labels = torch.cat([torch.arange(N, 2 * N),
                             torch.arange(0, N)]).to(z.device)
 
-        # mask self-similarity so a point isn't its own negative
+        #mask self similarity
         mask = torch.eye(2 * N, dtype=torch.bool, device=z.device)
         sim_matrix.masked_fill_(mask, -1e9)
 
         return F.cross_entropy(sim_matrix, labels)
 
 
+
+
+#####################################################################
 def train_simclr(epochs=500, batch_size=512, lr=0.4, momentum=0.9,
                  weight_decay=1e-4, temperature=0.5, device='cuda',
                  checkpoint_path='simclr_checkpoint.'):

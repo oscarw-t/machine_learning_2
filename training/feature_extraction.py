@@ -7,7 +7,8 @@ import torchvision.transforms as transforms
 
 @torch.no_grad()
 def extract_features(model, device='cuda'):
-    #extract L2 normalised 512 dim embeddings for all training images
+    
+    #extract l2-normalised 512-dim embeddings
     print("2. extracting features")
 
     plain_transform = transforms.Compose([
@@ -21,16 +22,24 @@ def extract_features(model, device='cuda'):
     )
     loader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=2)
 
+
+
     model.eval()
+
+
     all_features, all_labels = [], []
 
     for images, labels in loader:
+
         features = model.get_features(images.to(device))
         features = F.normalize(features, dim=1)
         all_features.append(features.cpu())
         all_labels.append(labels)
 
-    features = torch.cat(all_features, dim=0).numpy()  # (50000, 512)
+    features = torch.cat(all_features, dim=0).numpy()  #(50000, 512)
     labels = torch.cat(all_labels, dim=0).numpy()
+
     print(f"  features: {features.shape}\n")
+
+    
     return features, labels

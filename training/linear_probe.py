@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+
 import torchvision
 import torchvision.transforms as transforms
 
@@ -19,10 +20,13 @@ def extract_test_features(model, device='cuda'):
     loader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=2)
 
     model.eval()
+    
     feats, lbls = [], []
     for images, lbl in loader:
+
         f = model.get_features(images.to(device))
         feats.append(F.normalize(f, dim=1).cpu())
+
         lbls.append(lbl)
 
     return torch.cat(feats).numpy(), torch.cat(lbls).numpy()
@@ -30,16 +34,18 @@ def extract_test_features(model, device='cuda'):
 
 def train_linear_probe(train_features, train_labels, test_features, test_labels,
                        device='cuda', supervised_epochs=100):
+    
+    
     epochs = supervised_epochs * 2
     lr = 0.025 * 100
 
-    X_tr = torch.tensor(train_features, dtype=torch.float32)
-    y_tr = torch.tensor(train_labels,   dtype=torch.long)
-    X_te = torch.tensor(test_features,  dtype=torch.float32)
-    y_te = torch.tensor(test_labels,    dtype=torch.long)
+    xtrain = torch.tensor(train_features, dtype=torch.float32)
+    ytrain = torch.tensor(train_labels,   dtype=torch.long)
+    xtest = torch.tensor(test_features,  dtype=torch.float32)
+    ytest = torch.tensor(test_labels,    dtype=torch.long)
 
-    loader = DataLoader(TensorDataset(X_tr, y_tr),
-                        batch_size=min(64, len(y_tr)), shuffle=True)
+    loader = DataLoader(TensorDataset(xtrain, ytrain),
+                        batch_size=min(64, len(ytrain)), shuffle=True)
 
     head = nn.Linear(train_features.shape[1], 10).to(device)
     optimizer = optim.SGD(head.parameters(), lr=lr, momentum=0.9, nesterov=True)
@@ -47,16 +53,21 @@ def train_linear_probe(train_features, train_labels, test_features, test_labels,
     criterion = nn.CrossEntropyLoss()
 
     head.train()
+
     for _ in range(epochs):
+
         for x, y in loader:
+
             loss = criterion(head(x.to(device)), y.to(device))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            
         scheduler.step()
 
     head.eval()
     with torch.no_grad():
-        preds = head(X_te.to(device)).argmax(dim=1).cpu()
+        preds = head(xtest.to(device)).argmax(dim=1).cpu()
 
-    return (preds == y_te).float().mean().item() * 100.0
+    return (preds == ytest).float().mean().item() * 100.0

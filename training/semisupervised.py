@@ -17,20 +17,21 @@ def train_semisupervised(
     epochs = supervised_epochs * 2
     lr = 2.5
 
-    X_all = torch.tensor(train_features, dtype=torch.float32)
-    y_all = torch.tensor(train_labels,   dtype=torch.long)
-    X_te  = torch.tensor(test_features,  dtype=torch.float32)
-    y_te  = torch.tensor(test_labels,    dtype=torch.long)
+    all_x = torch.tensor(train_features, dtype=torch.float32)
+    all_y = torch.tensor(train_labels,   dtype=torch.long)
 
-    X_lab = X_all[labeled_indices]
-    y_lab = y_all[labeled_indices]
+    xtest  = torch.tensor(test_features,  dtype=torch.float32)
+    ytest  = torch.tensor(test_labels,    dtype=torch.long)
+
+    X_lab = all_x[labeled_indices]
+    y_lab = all_y[labeled_indices]
 
     head = nn.Linear(train_features.shape[1], 10).to(device)
-    _fit_head(head, X_lab, y_lab, epochs, lr, device)
+    fit_head(head, X_lab, y_lab, epochs, lr, device)
 
     unlabeled_mask = torch.ones(len(train_features), dtype=torch.bool)
     unlabeled_mask[labeled_indices] = False
-    X_unlab = X_all[unlabeled_mask]
+    X_unlab = all_x[unlabeled_mask]
 
     head.eval()
     with torch.no_grad():
@@ -42,23 +43,23 @@ def train_semisupervised(
     if high_conf.sum().item() == 0:
         head.eval()
         with torch.no_grad():
-            preds = head(X_te.to(device)).argmax(dim=1).cpu()
-        return (preds == y_te).float().mean().item() * 100.0
+            preds = head(xtest.to(device)).argmax(dim=1).cpu()
+        return (preds == ytest).float().mean().item() * 100.0
 
     X_combined = torch.cat([X_lab, X_unlab[high_conf]], dim=0)
     y_combined = torch.cat([y_lab, pseudo_labels[high_conf]], dim=0)
 
     head2 = nn.Linear(train_features.shape[1], 10).to(device)
-    _fit_head(head2, X_combined, y_combined, epochs, lr, device)
+    fit_head(head2, X_combined, y_combined, epochs, lr, device)
 
     head2.eval()
     with torch.no_grad():
-        preds = head2(X_te.to(device)).argmax(dim=1).cpu()
+        preds = head2(xtest.to(device)).argmax(dim=1).cpu()
 
-    return (preds == y_te).float().mean().item() * 100.0
+    return (preds == ytest).float().mean().item() * 100.0
 
 
-def _fit_head(head, X, y, epochs, lr, device):
+def fit_head(head, X, y, epochs, lr, device):
     loader = DataLoader(
         TensorDataset(X, y),
         batch_size=min(64, len(y)),
@@ -69,10 +70,12 @@ def _fit_head(head, X, y, epochs, lr, device):
     criterion = nn.CrossEntropyLoss()
 
     head.train()
+    
     for _ in range(epochs):
         for x_batch, y_batch in loader:
             loss = criterion(head(x_batch.to(device)), y_batch.to(device))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
         scheduler.step()
